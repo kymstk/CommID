@@ -15,6 +15,19 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  **************************************************************************/
+
+function numbercheck(val){
+    const type = val.constructor.name;
+    if( ! ['Number', 'BigInt'].includes(type) )
+        throw "Error: argument's typs is neither 'Number' nor 'BigInt'";
+    if(type == 'Number' && isNaN(val))
+        throw "Error: argument is NaN";
+
+    if(type == 'Number')
+        val = Math.floor(val);
+
+    return val;
+}
 /*
  * base32
  */
@@ -27,6 +40,8 @@ _base32.replaceSrcRegexp = new RegExp('[' + _base32.replaceSrc + ']', 'g');
 _base32.replaceDstRegexp = new RegExp('[' + _base32.replaceDst + ']', 'g');
 
 export function base32_encode(val){
+    val = numbercheck(val);
+
     return val.toString(32).replace(
         _base32.replaceSrcRegexp,
         function(match){
@@ -101,6 +116,8 @@ for(let i = 0; i < 64; i++){
 }
 
 export function base64_encode(val){
+    val = numbercheck(val);
+
     let data = val.toString(8);
     let minus = false;
     if(data[0] == '-'){
