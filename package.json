@@ -1,9 +1,19 @@
 {
+  "name": "commid",
+  "private": true,
+  "version": "0.1.0",
   "type": "module",
-  "scripts": {
+  "files": [
+    "src"
+  ],
+  "main": "./src/commid.js",
+  "exports": {
+    ".": {
+      "import": "./src/commid.js"
+    }
   },
-  "devDependencies": {
-  },
+  "scripts": {},
   "dependencies": {
+    "polycrc": "^1.1.1"
   }
 }
