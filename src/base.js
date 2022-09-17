@@ -66,7 +66,7 @@ export function base32_decode(strI){
 
     // javascript の int の精度は 53bit が限界
     //   → https://qiita.com/uhyo/items/f9abb94bcc0374d7ed23
-    // base64 で 10文字＝ 50bitなので、
+    // base32 で 10文字＝ 50bitなので、
 
     if(strI.length < 11){
         // 11文字以下なら Int
