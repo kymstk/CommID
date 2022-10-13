@@ -28,10 +28,15 @@ const bitlen = 54;
 const lowerBitLen = 27;
 const upperBitLen = bitlen - lowerBitLen;
 
-function calcCRC(id){
-    const rawidA = new Uint8Array(7);
+const isNumber = function(value) {
+    return ( (typeof value === 'number') && (isFinite(value)) ) || typeof value === 'bigint';
+};
 
-    const b16 = id.toString(16).padStart(Math.ceil(bitlen / 4), '0');
+function calcCRC(id, bits){
+    const digit = Math.ceil(bits / 8);
+    const rawidA = new Uint8Array(digit);
+
+    const b16 = id.toString(16).padStart(digit * 2, '0');
 
     for(let i = b16.length, j = 0; i > 0; i -= 2, j++){
         rawidA[j] = parseInt(b16.slice(i - 2, i), 16);
@@ -40,37 +45,52 @@ function calcCRC(id){
     return polycrc.crc6(rawidA);
 }
 
-export function genCommID(){
-    const lower = Math.floor(Math.random() * 2 ** lowerBitLen);
-    const upper = Math.floor(Math.random() * 2 ** upperBitLen);
+export function genCommID(id, extend){
+    if( !isNumber(id) ){
+        const lower = Math.floor(Math.random() * 2 ** lowerBitLen);
+        const upper = Math.floor(Math.random() * 2 ** upperBitLen);
 
-    const id = ( BigInt(upper) << BigInt(lowerBitLen) ) + BigInt(lower);
-
-    const crc = calcCRC(id);
+        id = ( BigInt(upper) << BigInt(lowerBitLen) ) + BigInt(lower);
+    }else{
+        id = BigInt(id);
+        if(id.toString(2).length > bitlen)
+            id = id & ( 1n << BigInt(bitlen) ) - 1n;
+    }
     
-    const b32 = base32.encode( ( BigInt(crc) << BigInt(bitlen) ) + id);
-    const commID = b32.padStart((bitlen + crclen) / 5, '0').replace(/.../g, '$&-').replace(/-$/, '');
+    let ext_id = id;
+    let extbitlength = 0;
+    if( isNumber(extend) ){
+        ext_id = ( BigInt(extend) << BigInt(bitlen) ) + ext_id
+        extbitlength = extend.toString(2).length;
+    }
+
+    const crc = calcCRC(ext_id, bitlen + extbitlength);
+    
+    const b32 = base32.encode( ( ext_id << BigInt(crclen) ) + BigInt(crc) );
+    const commID = b32.padStart(Math.ceil( (extbitlength + bitlen + crclen) / 5 ), '0').replace(/..../g, '$&-').replace(/-$/, '');
 
     const b64 = base64.encode(id);
 
-    return { id:id, b32: b32, b64: b64, crc:crc, commID: commID };
+    return { id:id, b32:b32, b64:b64, crc:crc, commID:commID, extend:extend };
 }
 
 export function decodeCommID(commID){
     const _bitlen = BigInt(bitlen);
 
     const b32 = commID.replaceAll('-', '');
-    const crc_id = base32.decode(b32);
-    const id = crc_id & ( 2n ** _bitlen - 1n);
-    const crc = crc_id >> _bitlen;
+    const ext_id_crc = base32.decode(b32);
+    const crc = ext_id_crc & BigInt((1 << crclen) - 1);
+    const ext_id = ext_id_crc >> BigInt(crclen);
+    const id =  ext_id & ( (1n << _bitlen) - 1n);
+    const extend = ext_id >> _bitlen;
 
-    const crc_check = calcCRC(id);
+    const crc_check = calcCRC(ext_id, bitlen + extend.toString(2).length);
 
     if(crc != crc_check){
-        throw `Error: CRC check: ${crc}, ${crc_check}, ${id}, ${crc_id}`;
+        throw `Error: CRC check: ${crc}, ${crc_check}, ${ext_id}, ${ext_id_crc}`;
     }
     
     const b64 = base64.encode(id);
 
-    return { id:id, b32: b32, b64: b64, crc:crc, commID: commID };
+    return { id:id, b32:b32, b64:b64, crc:crc, commID:commID, extend:extend };
 }
